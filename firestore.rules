@@ -1,0 +1,105 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function isAdmin() {
+      return isSignedIn() && (exists(/databases/$(database)/documents/staff/$(request.auth.uid)) || request.auth.token.email == 'evotech4001@gmail.com');
+    }
+    
+    // Validation Helpers
+    function isValidStaffUser(data) {
+      return data.keys().hasAll(['email', 'role']) && data.keys().size() == 2
+        && data.email is string && data.email.size() <= 200
+        && data.role in ['staff', 'admin'];
+    }
+
+    function isValidRfiCase(data) {
+      return data.keys().hasAll(['subject', 'customerName', 'customerEmail', 'dateReceived', 'severity', 'status', 'deadline', 'createdAt', 'updatedAt'])
+        && data.subject is string && data.subject.size() <= 500
+        && data.customerName is string && data.customerName.size() <= 200
+        && data.customerEmail is string && data.customerEmail.size() <= 200
+        && data.dateReceived is number
+        && data.severity in ['High', 'Normal']
+        && data.status in ['Waiting', 'Follow-Up Sent', 'Escalated to MM', 'Blocked', 'Resolved']
+        && data.deadline is number
+        && data.createdAt is number
+        && data.updatedAt is number;
+    }
+
+    function isValidFollowUp(data) {
+      // proofUrl is optional, so we handle both cases
+      let hasOptional = data.keys().hasAll(['proofUrl']);
+      let baseValid = data.keys().hasAll(['type', 'notes', 'date', 'staffId'])
+        && data.type in ['email', 'call', 'chat_proof']
+        && data.notes is string && data.notes.size() <= 2000
+        && data.date is number
+        && data.staffId is string && data.staffId == request.auth.uid;
+      
+      return (hasOptional && data.keys().size() == 5 && baseValid && data.proofUrl is string && data.proofUrl.size() <= 2048)
+          || (!hasOptional && data.keys().size() == 4 && baseValid);
+    }
+    
+    function isValidBlockedCustomer(data) {
+      return data.keys().hasAll(['email', 'blockedAt', 'reason', 'staffId']) && data.keys().size() == 4
+        && data.email is string && data.email.size() <= 200
+        && data.blockedAt is number
+        && data.reason is string && data.reason.size() <= 1000
+        && data.staffId is string && data.staffId == request.auth.uid;
+    }
+
+    // Match conditions
+    match /staff/{userId} {
+      // Only admins or the backend can create staff initially, or let's say all authenticated verified users who match their uid can read themselves
+      // Actually this is an internal app. We'll verify users on the backend or seed an initial admin. For now, allow read if they are the user or if they are admin.
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // No client creation of staff outside of admin
+      allow create, update, delete: if false; 
+    }
+
+    match /rfis/{rfiId} {
+      allow list, get: if isAdmin();
+      allow create: if isAdmin()
+                    && isValidId(rfiId) 
+                    && isValidRfiCase(incoming())
+                    && incoming().createdAt == request.time.toMillis();
+      allow update: if isAdmin() 
+                    && isValidRfiCase(incoming())
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().updatedAt == request.time.toMillis()
+                    // Allow status updates or other modifications
+                    && incoming().diff(existing()).affectedKeys().hasAny(['status', 'deadline', 'updatedAt', 'severity']);
+      allow delete: if false;
+    }
+
+    match /rfis/{rfiId}/followups/{followupId} {
+      // Must be a valid RFI parent
+      allow list, get: if isAdmin() && exists(/databases/$(database)/documents/rfis/$(rfiId));
+      allow create: if isAdmin()
+                    && isValidId(followupId)
+                    && exists(/databases/$(database)/documents/rfis/$(rfiId)) // Parent must exist
+                    && isValidFollowUp(incoming());
+      // Follow-ups are immutable audit logs
+      allow update, delete: if false;
+    }
+
+    match /blocked_customers/{customerId} {
+      allow list, get: if isAdmin();
+      allow create: if isAdmin()
+                    && isValidId(customerId)
+                    && isValidBlockedCustomer(incoming());
+      allow update, delete: if false; // Only manageable by MM or staff unblocking (assume immutable for now)
+    }
+  }
+}

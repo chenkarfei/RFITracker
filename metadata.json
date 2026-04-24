@@ -1,0 +1,6 @@
+{
+  "name": "RFI Escalation Tracker",
+  "description": "Internal RFI Email Follow-Up Tracking System to manage customer responses and escalate non-responsive cases to MM.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

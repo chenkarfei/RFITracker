@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "RfiCase": {
+      "title": "RFI Case",
+      "description": "A single Request for Information case",
+      "type": "object",
+      "properties": {
+        "subject": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "dateReceived": { "type": "integer" },
+        "severity": { "type": "string", "enum": ["High", "Normal"] },
+        "status": { "type": "string", "enum": ["Waiting", "Follow-Up Sent", "Escalated to MM", "Blocked", "Resolved"] },
+        "deadline": { "type": "integer" },
+        "createdAt": { "type": "integer" },
+        "updatedAt": { "type": "integer" }
+      },
+      "required": ["subject", "customerName", "customerEmail", "dateReceived", "severity", "status", "deadline", "createdAt", "updatedAt"]
+    },
+    "FollowUp": {
+      "title": "Follow Up",
+      "description": "A follow-up action taken for an RFI case",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["email", "call", "chat_proof"] },
+        "notes": { "type": "string" },
+        "date": { "type": "integer" },
+        "staffId": { "type": "string" },
+        "proofUrl": { "type": "string", "description": "Optional URL to screenshot or file" }
+      },
+      "required": ["type", "notes", "date", "staffId"]
+    },
+    "BlockedCustomer": {
+      "title": "Blocked Customer",
+      "description": "Customer permanently blocked by MM",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "blockedAt": { "type": "integer" },
+        "reason": { "type": "string" },
+        "staffId": { "type": "string" }
+      },
+      "required": ["email", "blockedAt", "reason", "staffId"]
+    },
+    "StaffUser": {
+      "title": "Staff User",
+      "description": "Internal tracking system user",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["staff", "admin"] }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/staff/{userId}": {
+      "schema": { "$ref": "#/entities/StaffUser" },
+      "description": "Registered staff members"
+    },
+    "/rfis/{rfiId}": {
+      "schema": { "$ref": "#/entities/RfiCase" },
+      "description": "Core RFI cases"
+    },
+    "/rfis/{rfiId}/followups/{followupId}": {
+      "schema": { "$ref": "#/entities/FollowUp" },
+      "description": "Follow-ups for a specific RFI"
+    },
+    "/blocked_customers/{customerId}": {
+      "schema": { "$ref": "#/entities/BlockedCustomer" },
+      "description": "List of permanently blocked customers"
+    }
+  }
+}
