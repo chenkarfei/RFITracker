@@ -51,6 +51,20 @@
         "role": { "type": "string", "enum": ["staff", "admin"] }
       },
       "required": ["email", "role"]
+    },
+    "ImapConfig": {
+      "title": "IMAP Configuration",
+      "description": "Settings for an external IMAP mailbox to monitor",
+      "type": "object",
+      "properties": {
+        "host": { "type": "string" },
+        "port": { "type": "integer" },
+        "user": { "type": "string" },
+        "pass": { "type": "string" },
+        "label": { "type": "string", "description": "Display name for this mailbox" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["host", "port", "user", "pass", "label", "createdAt"]
     }
   },
   "firestore": {
@@ -69,6 +83,10 @@
     "/blocked_customers/{customerId}": {
       "schema": { "$ref": "#/entities/BlockedCustomer" },
       "description": "List of permanently blocked customers"
+    },
+    "/imap_configs/{configId}": {
+      "schema": { "$ref": "#/entities/ImapConfig" },
+      "description": "Configured IMAP mailboxes for syncing"
     }
   }
 }

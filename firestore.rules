@@ -59,6 +59,16 @@ service cloud.firestore {
         && data.staffId is string && data.staffId == request.auth.uid;
     }
 
+    function isValidImapConfig(data) {
+      return data.keys().hasAll(['host', 'port', 'user', 'pass', 'label', 'createdAt']) && data.keys().size() == 6
+        && data.host is string && data.host.size() <= 500
+        && data.port is int
+        && data.user is string && data.user.size() <= 200
+        && data.pass is string && data.pass.size() <= 200
+        && data.label is string && data.label.size() <= 100
+        && data.createdAt is int;
+    }
+
     // Match conditions
     match /staff/{userId} {
       // Only admins or the backend can create staff initially, or let's say all authenticated verified users who match their uid can read themselves
@@ -66,6 +76,15 @@ service cloud.firestore {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       // No client creation of staff outside of admin
       allow create, update, delete: if false; 
+    }
+
+    match /imap_configs/{configId} {
+      allow list, get: if isAdmin();
+      allow create: if isAdmin()
+                    && isValidId(configId)
+                    && isValidImapConfig(incoming());
+      allow delete: if isAdmin();
+      allow update: if false; // Immutable configs for simplicity, delete and recreate
     }
 
     match /rfis/{rfiId} {

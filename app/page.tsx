@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { collection, query, orderBy, onSnapshot, limit, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { formatDistanceToNow, isPast, format } from 'date-fns';
-import { Clock, AlertCircle, CheckCircle2, ChevronRight, Plus, RefreshCw } from 'lucide-react';
+import { Clock, AlertCircle, CheckCircle2, ChevronRight, Plus, RefreshCw, Settings } from 'lucide-react';
 import Link from 'next/link';
 
 type RfiCase = {
@@ -18,6 +18,7 @@ type RfiCase = {
   deadline: number;
   createdAt: number;
   updatedAt: number;
+  syncedFrom?: string;
 };
 
 export default function DashboardPage() {
@@ -70,6 +71,13 @@ export default function DashboardPage() {
           <p className="text-gray-500 mt-1">Track deadlines and follow-ups for ongoing RFIs.</p>
         </div>
         <div className="flex gap-3">
+          <Link 
+            href="/settings"
+            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            Config
+          </Link>
           <button 
             onClick={handleSync}
             disabled={syncing}
@@ -140,6 +148,12 @@ function RfiRow({ rfi }: { rfi: RfiCase }) {
             <span className="truncate">{rfi.customerName} &lt;{rfi.customerEmail}&gt;</span>
             <span className="hidden sm:inline text-gray-300">•</span>
             <span>Received: {format(rfi.dateReceived, 'MMM d, yyyy h:mm a')}</span>
+            {rfi.syncedFrom && (
+              <>
+                <span className="hidden sm:inline text-gray-300">•</span>
+                <span className="italic text-gray-400">Via {rfi.syncedFrom}</span>
+              </>
+            )}
           </div>
         </div>
 
